@@ -3,6 +3,7 @@ author: Esteban Aranda
 ---
 
 ##Heap 2 Writeup
+Basic concepts that one should understand before attempting to solve this binary are: pointers, `malloc`, and `free`.
 
 By examining the source code we can see that this problem has an auth structure made up of a 32 byte-long string and an int. Two pointers are defined, one to an auth struct and one to a "service" character. The program runs on an infinite while loop and there are four commands we can run, `auth`, `reset`, `service`, and `login`. Based on what command we run the program proceeds to do different actions. Our goal is to successfully log in to read the flag. To help us out, there is also a print statement that prints the memory addresses of our two variables.
 
